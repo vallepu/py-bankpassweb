@@ -1,4 +1,7 @@
 class BPWException(Exception):
+	"""
+	Base class for exceptions specific to the bankpassweb module.
+	"""
 	pass
 	
 class BPWParmException(BPWException):
