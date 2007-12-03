@@ -157,6 +157,7 @@ class Request(DataTree):
 		"""
 		Create a new instance from a XML tree.
 		"""
+		#print xml
 		o = object.__new__(cls)
 		o.engine = engine
 		o.__init_from_xml(xml=xml, *args, **kwargs)

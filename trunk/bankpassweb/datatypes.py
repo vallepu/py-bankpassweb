@@ -140,15 +140,18 @@ class DataTree(Parsable):
 		import xmltramp
 		if not isinstance(xml, xmltramp.Element):
 			xml = xmltramp.parse(xml)
-		return cls(xml, **kwargs)
+		kwargs['xml'] = xml
+		return general_parser(cls, xml._name, 'xmltag', **kwargs)
 				
 	def _debugging_dict(self):
 		tmp = self.__dict__
 		try:
 			del tmp['xml']
 		except KeyError:
-			raise TypeError('xml attribute missing in %s instance' %
-				self.__class__.__name__)
+			from apirequests import Request
+			if not isinstance(self, Request):
+				raise TypeError('xml attribute missing in %s instance' %
+					self.__class__.__name__)
 		return tmp
 	def __repr__(self):
 		return '<%s: %s>' % (self.__class__.__name__,
