@@ -51,6 +51,17 @@ class Request(DataTree):
 			
 
 	def __prepare_for_req(self, fieldname, val):
+		"""
+		Converts a single value into a string, ready for being sent
+		over HTTP.
+		If the value is already an instance of BPWDataType, then its
+		encoded form is returned.
+		If it isn't, then we try to find its appropriate class based
+		on 'fieldname'; we build an instance and then return the encoded
+		form.
+		If we can't build a BPWDataType instance, then we just return
+		the value itself.
+		"""
 		# Discover data type
 		if isinstance(val, BPWDataType):
 			return val.encoded
@@ -68,8 +79,14 @@ class Request(DataTree):
 	def __init__(self, engine=None, params=None, xml=None,
 		blankfields=[], **kwargs):
 		"""
-		- __init__() takes arguments provided by the subclasses and builds
+		__init__() takes arguments provided by the subclasses and builds
 		the relevant data structures.
+		The 'engine' kw parameter is always set.
+		If we have a 'xml' keyword parameter, then the request is a
+		'receipt' object returned by the application server.
+		Otherwise, we clear blank fields and we process each remaining
+		kw parameter by looking up the matching HTTP query string
+		parameter and preparing it.
 		"""
 		self.engine = engine
 		
@@ -116,6 +133,12 @@ class Request(DataTree):
 		)		
 
 	def __set_if_present(self, tag, attr, valtype=None):
+		"""
+		Sets an instance attribute from a XML tree.
+		If 'tag' is present in self.xml, then we extract its value,
+		parse it as a 'valtype' object if possible, and set the
+		'attr' attribute in our instance.
+		"""
 		try:
 			val = str(getattr(self.xml, tag))
 		except AttributeError:
@@ -131,12 +154,22 @@ class Request(DataTree):
 
 	@classmethod
 	def parse_init(cls, xml, engine=None, *args, **kwargs):
+		"""
+		Create a new instance from a XML tree.
+		"""
 		o = object.__new__(cls)
 		o.engine = engine
 		o.__init_from_xml(xml=xml, *args, **kwargs)
 		return o
 
 	def __init_from_xml(self, xml):
+		"""
+		Create a new instance from a XML tree.
+		Each mapping is made of a XML tag, an attribute name and
+		an optional class.  (This is not done directly through
+		classes, since some elements contain strings and have no
+		specific class.)
+		"""
 		self.xml = xml
 		header = xml.TestataRichiesta
 		self.crn = str(header.IDnegozio)
@@ -170,7 +203,7 @@ class Request(DataTree):
 										
 	def _qs(self):
 		"""
-		Add the MAC parameter and return the final urlencoded
+		Add the MAC parameter and return the final, NOT urlencoded,
 		querystring.
 		"""
 		self.params['MAC'] = self.engine.compute_mac(self.params,
@@ -236,7 +269,8 @@ class Authorize(Request):
 
 class ReqTransOrder(Request):
 	"""
-	Close an order so that no more money can be authorized.
+	Base class for all requests involving a transaction ID and
+	an order ID.
 	"""
 	macfields = Request.macfields + ('IDTRANS', 'NUMORD')
 	reqfields = macfields
@@ -251,6 +285,10 @@ class ReqTransOrder(Request):
 		super(ReqTransOrder, self).__init__(**kwargs)
 
 class ReqTransOrderAmount(Request):
+	"""
+	Base class for all requests involving a transaction ID,
+	an order ID, an amount of money and a currency.
+	"""
 	macfields = Request.macfields + ('IDTRANS', 'NUMORD', 'IMPORTO',
 		'VALUTA')
 	reqfields = macfields
@@ -262,26 +300,48 @@ class ReqTransOrderAmount(Request):
 		super(ReqTransOrderAmount, self).__init__(**kwargs)
 
 class CloseAuth(ReqTransOrder):
+	"""
+	Close an order so that no more money can be authorized.
+	"""
 	opname = 'CHIUSURADIFFERITA'
 	xmltag = 'RicChiusuraAutorizzazione'
 
 class Account(ReqTransOrderAmount):
+	"""
+	Account an amount of money belonging to a successful authorization.
+	The transaction ID is that of the authorization to be charged.
+	"""
 	opname = 'CONTABILIZZAZIONE'
 	xmltag = 'RicContabilizzazione'
 
 class CancelAccounting(ReqTransOrder):
+	"""
+	Cancel an accounting operation. The transaction ID is that of the
+	accounting operation itself.
+	"""
 	opname = 'ANNULLAMENTOCONTABILIZZAZIONE'
 	xmltag = 'RicAnnullamentoContabilizzazione'
 		
 class WriteOff(ReqTransOrderAmount):
+	"""
+	Write off, totally of partially, a sum of money that was authorized
+	or authorized and accounted.
+	"""
 	opname = 'STORNO'
 	xmltag = 'RicStorno'
 
 class Split(ReqTransOrder):
+	"""
+	Split an existing order. Any immediate authorization is changed
+	into a deferred one.
+	"""
 	opname = 'SPLIT'
 	xmltag = 'RicSplit'
 	
 class FormerResult(Request):
+	"""
+	Get the result code for a former operation.
+	"""
 	opname = 'VERIFICA'
 	xmltag = 'RicVerifica'
 	macfields = Request.macfields + ('REQREFNUMORIG',)
@@ -291,6 +351,10 @@ class FormerResult(Request):
 		super(FormerResult, self).__init__(**kwargs)
 		
 class TransactionList(Request):
+	"""
+	Get a list of the accounting operations performed within the
+	requested date range.
+	"""
 	opname = 'ELENCOCONTABILE'
 	xmltag = 'RicElencoOperazioniContabili'
 	macfields = Request.macfields + ('DATAINIZIO', 'DATAFINE')
@@ -301,6 +365,11 @@ class TransactionList(Request):
 		super(TransactionList, self).__init__(**kwargs)
 		
 class AuthList(Request):
+	"""
+	Get the list of the authorizations issued or denied. They may be
+	filtered by date range or by type.  Otherwise, an authorization ID
+	can be requested; the other parameteres will be ignored.
+	"""
 	opname = 'ELENCOAUTORIZZAZIONI'
 	xmltag = 'RicElencoAutorizzazioni'
 	macfields = Request.macfields + ('DATAINIZIO', 'DATAFINE', 'FILTRO', 'IDTRANS')
@@ -320,6 +389,10 @@ class AuthList(Request):
 		super(AuthList, self).__init__(**kwargs)
 
 class OrderStatus(Request):
+	"""
+	Request the status for an order This returns the relevant
+	authorizations.
+	"""
 	opname = 'SITUAZIONEORDINE'
 	xmltag = 'RicSituazioneOrdine'
 	macfields = Request.macfields + ('NUMORD',)

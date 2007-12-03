@@ -3,6 +3,13 @@ from urllib import urlencode, unquote_plus
 from bpwexceptions import *
 
 class Engine(object):
+	"""
+	The main class to generate payment links, send API requests and
+	process answers.
+	
+	It should always know the shop ID, the operator username for
+	API operations, and the secret keys for processing MACs.
+	"""
 	from settings import ENV_URL, START_SECRET, RESULT_SECRET, API_URL
 	
 	env = ENV_URL
@@ -30,6 +37,7 @@ class Engine(object):
 		self.urldone_pattern = urldone
 		self.urlms_pattern = urlms
 		self.email = email
+		# Defaults
 		if start_secret:
 			self.start_secret = start_secret
 		if result_secret:
@@ -42,7 +50,8 @@ class Engine(object):
 		
 	def compute_mac(self, params, reqfields, optfields=None,
 		secret=None, alg=None, api=False):
-		
+		"Compute the MAC for an order URL."
+
 		# Choose secret
 		if not secret:
 			secret = self.start_secret
@@ -64,6 +73,7 @@ class Engine(object):
 		return alg.new(text).hexdigest()
 	
 	def mac_ok(self, message, reqfields=None, mac=None, optfields=None):
+		"Check the MAC in an answer."
 		# Do we have one?
 		if mac:
 			assert isinstance(message, str) or isinstance(message, list)
@@ -128,6 +138,7 @@ class Engine(object):
 		get_modpag=True, first_name=None, last_name=False,
 		cc_only=False, bankpass_only=False, get_trans_type=True, 
 		get_issuer_country=True):
+		"Generate an order URL."
 		
 		# ISO conversion
 		if not isinstance(currency, int):
@@ -188,7 +199,8 @@ class Engine(object):
 			optfields=('OPTIONS', 'NOME', 'COGNOME', 'LOCKCARD'))
 		return url + '&' + urlencode(params)
 		
-	def parse_answer(self, qs):
+	def parse_answer(self, qs
+		"Parse a provided result for an order operation."
 		# Split query string without url-decoding
 		parms = dict([pair.split('=') for pair in qs.split('&')])
 		

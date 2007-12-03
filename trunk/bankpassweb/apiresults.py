@@ -34,23 +34,16 @@ class Result(DataTree):
 	def __init__(self, xml, engine=None):
 		self.xml = xml
 		self.engine = engine
-		self.result_type = ResultType.parse(str(xml.Esito))
+		self.type = ResultType.parse(str(xml.Esito))
 		self.timestamp = ParseDateTime(str(xml.Timestamp))
 		self.check_mac()
 		for el in xml.Dati:
 			self.add_data(el)
-	
-	@classmethod
-	def parse(cls, xml, **kwargs):
-		"""
-		
-		"""
-		import xmltramp
-		if not isinstance(xml, xmltramp.Element):
-			xml = xmltramp.parse(xml)
-		return cls(xml, **kwargs)
-			
+				
 	def add_data(self, el):
+		"""
+		Turn a XML element into a class attribute as needed.
+		"""
 		from apirequests import Request
 		node = DataTree.parse(el._name, xml=el, engine=self.engine)
 		if isinstance(node, Request):
@@ -82,15 +75,21 @@ class Result(DataTree):
 			raise "Not implemented yet", el._name
 			
 	def check_mac(self):
+		"""
+		Make sure that the MAC for the root element is correct.
+		"""
 		self.engine.mac_ok('%s&%s' % (str(self.xml.Timestamp), str(self.xml.Esito)),
 			mac=str(self.xml.MAC))
 	
 
 class Authorization(DataTree):
+	"""
+	This class represents an <Autorizzazione/> XML node.
+	"""
 	xmltag = 'Autorizzazione'
-	@classmethod
-	def parse(cls, xml, **kwargs):
-		return cls(xml, **kwargs)
+#	@classmethod
+#	def parse(cls, xml, **kwargs):
+#		return cls(xml, **kwargs)
 		
 	macfields = ('Tautor', 'IDtrans', 'Circuito', 'NumOrdine', 'ImportoTrans',
 		'ImportoAutor', 'Valuta', 'ImportoContab', 'EsitoTrans',
@@ -119,12 +118,12 @@ class Authorization(DataTree):
 		self.status = AuthStatus.parse(str(auth.Stato))
 	
 class AccountingOp(DataTree):
+	"""
+	This class represents an accounting transaction.
+	"""
 	xmltag = 'OperazioneContabile'
 	macfields = ('IDtrans', 'TimestampRic', 'TimestampElab',
 		'TipoOp', 'Importo', 'Esito', 'Stato')
-	@classmethod
-	def parse(cls, xml, **kwargs):
-		return cls(xml, **kwargs)
 	
 	def __init__(self, *args, **kwargs):
 		super(AccountingOp, self).__init__(*args, **kwargs)
@@ -139,6 +138,9 @@ class AccountingOp(DataTree):
 			xml=xml.Autorizzazione, engine=self.engine)
 			
 class CreditRestoreResult(DataTree,BPWDataType):
+	"""
+	Whether the credit card's limit was correctly restored.
+	"""
 	xmltag = 'EsitoRipristinoPlafond'
 	lookup_attribute = 'code'
 		
@@ -146,6 +148,9 @@ class RestoreSuccessful(CreditRestoreResult):
 	code = '00'
 
 class FormerResultCheck(DataTree):
+	"""
+	The result code for a former request.
+	"""
 	xmltag = 'Verifica'
 	macfields = ('TipoRichiesta', 'Esito', 'IDTrans')
 	@classmethod
@@ -159,6 +164,9 @@ class FormerResultCheck(DataTree):
 		self.id = str(xml.IDTrans)
 
 class FormerRequestType(DataTree):
+	"""
+	The type for a former request.
+	"""
 	xmltag = 'TipoRichiesta'
 	lookup_attribute = 'code'
 	@classmethod
@@ -172,6 +180,10 @@ class FormerRequestType(DataTree):
 		pass
 		
 class QuantityTag(DataTree):
+	"""
+	Base class for tags whose 'NumeroElementi' attribute indicates
+	how many nodes of a given kind must be expected.
+	"""
 	def __init__(self, xml, **kwargs):
 		super(QuantityTag, self).__init__(xml, **kwargs)
 		self.qty = self.xml('NumeroElementi')

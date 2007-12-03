@@ -2,6 +2,10 @@ from bpwexceptions import *
 from mx.DateTime.ISO import ParseDate
 from datetime import date
 class Parsable(object):
+	"""
+	Base class for all types that can be parsed. By default, the
+	'parse' method returns a specific subclass.
+	"""
 	lookup_attribute = 'code'
 	@classmethod
 	def parse(cls, *args, **kwargs):
@@ -20,6 +24,12 @@ class Parsable(object):
 
 def general_parser(cls, value, attr=None, 
 	builder='parse_init', *args, **kwargs):
+	"""
+	Take 'lookup_attribute' as the name of the attribute which,
+	in subclasses, holds the value to be matched.
+	Then, build a queue with all the subclasses and look for it.
+	When the subclass is found, build an instance.
+	"""
 	if not attr:
 		attr = cls.lookup_attribute
 	class_queue = [cls]
@@ -41,11 +51,17 @@ def general_parser(cls, value, attr=None,
 	raise BPWParmException("Missing default option for class %s, and cannot find" \
 		" subclass with value %s" % (cls, value))
 
-def general_typelist_generator(cls, attr):
-	return dict([(getattr(klass, attr), klass) for klass in
-		cls.__subclasses__()])
+#def general_typelist_generator(cls, attr):
+#	return dict([(getattr(klass, attr), klass) for klass in
+#		cls.__subclasses__()])
 
 class BPWDataType(Parsable):
+	"""
+	Base class for data types exchanged in BankPass Web HTTP messages.
+	Subclasses provide the _val() method, returning a useful expression
+	for further manipulation, and the _encoded() method, returning
+	the value in a format for HTTP exchange.
+	"""
 	default_lookup = 'fieldname'
 	@classmethod
 	def parse(cls, *args, **kwargs):
@@ -62,6 +78,10 @@ class BPWDataType(Parsable):
 			return super(BPWDataType, self).__getattribute__(attr, *args)
 
 class Subclassed(BPWDataType):
+	"""
+	Base class for data types that are parsed by picking a certain
+	subclass.
+	"""
 	lookup_attribute = 'code'
 	@classmethod
 	def parse(cls, *args, **kwargs):
@@ -75,11 +95,18 @@ class Subclassed(BPWDataType):
 		
 		
 class Valued(BPWDataType):
+	"""
+	Base class for types that are parsed by initializing the instance
+	with the provided values.
+	"""
 	@classmethod
 	def parse(cls, *args, **kwargs):
 		return cls(*args, **kwargs)
 
 class Date(Valued):
+	"""
+	A date. The encoded format is the ISO format.
+	"""
 	fieldname = ('DATAINIZIO', 'DATAFINE')	
 	
 	def __init__(self, ini):
@@ -94,6 +121,9 @@ class Date(Valued):
 			
 
 class DataTree(Parsable):
+	"""
+	Base class for an XML tree representing some kind of data.
+	"""
 	lookup_attribute = 'xmltag'
 	def __init__(self, xml, engine):
 		self.xml = xml
@@ -101,6 +131,17 @@ class DataTree(Parsable):
 		if hasattr(self, 'macfields'):
 			self.engine.mac_ok([getattr(self.xml, field) for field in 
 				self.macfields], mac=str(self.xml.MAC))
+	@classmethod
+	def parse(cls, xml, **kwargs):
+		"""
+		Default parser. Just parse the string, if not already done,
+		and use it to build a class instance.
+		"""
+		import xmltramp
+		if not isinstance(xml, xmltramp.Element):
+			xml = xmltramp.parse(xml)
+		return cls(xml, **kwargs)
+				
 	def _debugging_dict(self):
 		tmp = self.__dict__
 		try:
@@ -116,6 +157,10 @@ class DataTree(Parsable):
 		
 
 class Amount(Valued):
+	"""
+	An amount of money.  The encoded form is a string with an integer
+	representing the smallest admissible value (e.g. cents).
+	"""
 	fieldname = 'IMPORTO'
 	def __init__(self, amount):
 		from decimal import Decimal
@@ -131,6 +176,9 @@ class Amount(Valued):
 		return float(self._value)/100.0
 
 class Currency(BPWDataType):
+	"""
+	A currency.  The encoded form is the ISO numeric code.
+	"""
 	fieldname = 'VALUTA'
 	ISOCURR = {'EUR': 978}
 	@classmethod
@@ -167,6 +215,10 @@ def auth_acct_init(self, char=None, immediate=None, deferred=None):
 
 
 class AcctType(Subclassed):
+	"""
+	An accounting type. The encoded form is 'I' for immediate,
+	'D' for deferred.
+	"""
 	fieldname = 'TCONTAB'
 	default_lookup = 'code'
 #	@classmethod
@@ -184,48 +236,46 @@ class ImmediateAcct(AcctType):
 	code = 'I'
 
 class PaymentType(Subclassed):
+	"""
+	A type of payment.
+	"""
 	xmltag='TipoPag'
 	fieldname = 'TIPOPAG'
 	shop_vbv = False
 	customer_vbv = False
 	shop_securecode = False
 	customer_securecode = False
-	
 class BankpassWebB2C(PaymentType):
 	code = '01'
-	
 class BankpassMobileB2C(PaymentType):
 	code = '02'
-
 class SSLPayment(PaymentType):
 	code = '03'
-	
 class BothVBV(PaymentType):
 	code = '04'
 	shop_vbv = True
 	customer_vbv = True
-
 class BothSecureCode(PaymentType):
 	code = '05'
 	shop_securecode = True
 	customer_securecode = True
-
 class ShopVBV(PaymentType):
 	code = '06'
 	shop_vbv = True
-	
 class ShopSecureCode(PaymentType):
 	code = '07'
 	shop_securecode = True
-	
 class IncorrectCustomerAuthVBV(PaymentType):
 	code = '08'
 	customer_vbv = 'Incorrect'
-	
 class UnknownPaymentType(PaymentType):
 	default_option = True
 	
 class AuthType(Subclassed):
+	"""
+	A type of payment authorization. The encoded form is the same as
+	in AcctType.
+	"""
 	xmltag = 'Tautor'
 	fieldname = 'TAUTOR'
 	def __init__(self, *args, **kwargs):
@@ -233,15 +283,16 @@ class AuthType(Subclassed):
 			auth_acct_init(self, self.code, *args, **kwargs)
 		except AttributeError:
 			auth_acct_init(self, *args, **kwargs)
-	
-
 class ImmediateAuth(AuthType):
 	code = 'I'
-
 class DeferredAuth(AuthType):
 	code = 'D'
 
 class TransResult(Parsable):
+	"""
+	The result for an authorization transaction, as found in an
+	Authorization class.
+	"""
 	pass
 class TransSuccess(TransResult):
 	code = '00'
@@ -259,6 +310,9 @@ class TransWTF(TransResult):
 	code = '06'
 	
 class AuthStatus(Parsable):
+	"""
+	The status of an authorization request.
+	"""
 	lookup_attribute = 'code'
 class AuthGranted(AuthStatus):
 	code = '00'
@@ -283,6 +337,9 @@ class DeferredAuthClosed(AuthStatus):
 	
 
 class ResultType(Parsable):
+	"""
+	The result of an API Request.
+	"""
 	pass
 class Success(ResultType):
 	code = '00'
@@ -328,6 +385,10 @@ class OpFailure(ResultType):
 	code = '99'
 
 class OperationType(Parsable):
+	"""
+	The type of an accounting operation, as found in an AccountingOp
+	instance.
+	"""
 	pass
 class AuthWriteOff(OperationType):
 	code = '01'
@@ -339,6 +400,9 @@ class AcctOperation(OperationType):
 	code = '04'
 	
 class AcctStatus(Parsable):
+	"""
+	The status of an accounting operation.
+	"""
 	pass
 class AcctSuccess(AcctStatus):
 	code = '00'
@@ -346,6 +410,9 @@ class AcctFailure(AcctStatus):
 	code = '01'
 		
 class AuthFilterType(Subclassed):
+	"""
+	The filter for an AuthorizationList request.
+	"""
 	fieldname = 'FILTRO'
 	xmltag = 'Filtro'
 class GrantedAuths(AuthFilterType):
