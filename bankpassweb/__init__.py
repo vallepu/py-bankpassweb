@@ -10,7 +10,7 @@ e = Engine()
 
 import pdb
 
-order = 'gutentag'
+order = 'gut1entag'
 
 def shop(tautor='I', tcontab='I'):
 	from engine import Engine
@@ -73,10 +73,13 @@ transaction = '8032180310SL1j638yx2v1rsr'
 # - contabilizza A4
 # - chiudi differita
 
-def passo():
+def saved(idx):
+	print api_process(None, saved=idx)
+
+def passo(order=order):
 	status = api_process(e.req.OrderStatus(order), saved=1)
 	from datetime import date
-	d = date(2007,12,1)
+	d = date.today()
 	acctlist = api_process(e.req.TransactionList(d, d), saved=2)
 	first_auth = status.auths[0].id
 	ops = filter(lambda op: op.auth.id == first_auth, acctlist.ops)

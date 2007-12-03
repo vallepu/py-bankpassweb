@@ -2,7 +2,6 @@ from datatypes import Parsable, DataTree, ResultType
 from mx.DateTime.ISO import ParseDateTime
 from datatypes import *
 
-
 class ResultFactory(object):
 	"""
 	Generates Result (sub)classes that already know their Engine.
@@ -26,12 +25,16 @@ class ResultFactory(object):
 class Result(DataTree):
 	"""
 	This is the base class for any result coming from the XML API's.
-	
-	Its parse() classmethod automatically creates an instance of the most
-	specific matching classtype.
 	"""
 	macfields = ('Timestamp', 'Esito')
+	@classmethod
+	def parse(cls, xml, *args, **kwargs):
+		return cls(xml, *args, **kwargs)
+		
 	def __init__(self, xml, engine=None):
+		from xmltramp import Element, parse
+		if not isinstance(xml, Element):
+			xml = parse(xml)
 		self.xml = xml
 		self.engine = engine
 		self.type = ResultType.parse(str(xml.Esito))
@@ -45,7 +48,7 @@ class Result(DataTree):
 		Turn a XML element into a class attribute as needed.
 		"""
 		from apirequests import Request
-		node = DataTree.parse(el._name, xml=el, engine=self.engine)
+		node = DataTree.parse(xml=el, engine=self.engine)
 		if isinstance(node, Request):
 			self.request = node
 		elif isinstance(node, Authorization):
@@ -134,8 +137,7 @@ class AccountingOp(DataTree):
 		self.type = OperationType.parse(str(xml.TipoOp))
 		self.amount = Amount.parse(str(xml.Importo))
 		self.status = AcctStatus.parse(str(xml.Stato))
-		self.auth = DataTree.parse(xml.Autorizzazione._name,
-			xml=xml.Autorizzazione, engine=self.engine)
+		self.auth = DataTree.parse(xml.Autorizzazione, engine=self.engine)
 			
 class CreditRestoreResult(DataTree,BPWDataType):
 	"""

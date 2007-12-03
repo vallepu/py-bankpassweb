@@ -199,7 +199,7 @@ class Engine(object):
 			optfields=('OPTIONS', 'NOME', 'COGNOME', 'LOCKCARD'))
 		return url + '&' + urlencode(params)
 		
-	def parse_answer(self, qs
+	def parse_answer(self, qs):
 		"Parse a provided result for an order operation."
 		# Split query string without url-decoding
 		parms = dict([pair.split('=') for pair in qs.split('&')])
