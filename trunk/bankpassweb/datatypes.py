@@ -92,6 +92,8 @@ class Subclassed(BPWDataType):
 	def __init__(self, value=None):
 		if value:
 			assert value == getattr(self, self.lookup_attribute)
+	def __eq__(self, other):
+		return self.__class__ == other.__class__
 		
 		
 class Valued(BPWDataType):
@@ -339,7 +341,7 @@ class DeferredAuthClosed(AuthStatus):
 	code = '11'
 	
 
-class ResultType(Parsable):
+class ResultType(Subclassed):
 	"""
 	The result of an API Request.
 	"""
