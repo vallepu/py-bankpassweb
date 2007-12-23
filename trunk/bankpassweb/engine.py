@@ -10,17 +10,16 @@ class Engine(object):
 	It should always know the shop ID, the operator username for
 	API operations, and the secret keys for processing MACs.
 	"""
-	from settings import ENV_URL, START_SECRET, RESULT_SECRET, API_URL
 	
-	env = ENV_URL
-	start_secret = START_SECRET
-	result_secret = RESULT_SECRET
-	env_api = API_URL
-	
-	def __init__(self, crn='010500000000001',
-		operator='PROVA001',
-		urlback=None, urldone=None, urlms=None, urlapi=None,
-		email=None, start_secret=None, result_secret=None, alg=None):
+	def __init__(self, urlback=None, urldone=None, urlms=None, 
+		urlapi=None, email=None, alg=None, settings=None):
+		
+		# Settings
+		if not settings:
+			settings=__import__('settings').__dict__
+		for attr in ('env', 'start_secret', 'result_secret', 'env_api', 'crn', 'operator'):
+			setattr(self, attr, settings[attr])
+			
 		
 		# General
 		self.crn = crn
@@ -38,12 +37,6 @@ class Engine(object):
 		self.urlms_pattern = urlms
 		self.email = email
 		# Defaults
-		if start_secret:
-			self.start_secret = start_secret
-		if result_secret:
-			self.result_secret = result_secret
-		if urlapi:
-			self.api_url = urlapi
 		if not alg:
 			import sha
 			self.alg=sha

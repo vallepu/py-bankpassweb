@@ -40,7 +40,9 @@ def fetch_saved(idx):
 	r = Result.parse(f.read(), engine=e)
 	return r
 
-e = Engine()
+urlpattern = 'http://lighthouse.ath.cx/%s/%%s/'
+e = Engine(urlback=urlpattern % 'back', urldone = urlpattern % 'done',
+	urlms = urlpattern % 'ms')
 
 def api_process(r, comment=None, trace=False, saved=None, expect=None):
 	try:
@@ -65,9 +67,6 @@ def api_process(r, comment=None, trace=False, saved=None, expect=None):
 
 def shop(order, tautor='I', tcontab='I'):
 	from engine import Engine
-	urlpattern = 'http://lighthouse.ath.cx/%s/%%s/'
-	e = Engine(urlback=urlpattern % 'back', urldone = urlpattern % 'done',
-		urlms = urlpattern % 'ms')
 	print e.generate_start('12345', order, first_name='A',
 		last_name='B', tautor=tautor, tcontab=tcontab)
 
