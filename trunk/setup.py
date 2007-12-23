@@ -1,6 +1,6 @@
 from setuptools import setup, find_packages
 setup(
-    name = "BankPassWeb",
+    name = "py-bankpassweb",
     version = "0.1",
     packages = find_packages(),
     exclude_package_data = { '': ['*/local_*.py',]},
