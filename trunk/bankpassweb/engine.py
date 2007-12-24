@@ -15,16 +15,14 @@ class Engine(object):
 		urlapi=None, email=None, alg=None, settings=None):
 		
 		# Settings
+		import types
 		if not settings:
-			settings=__import__('settings').__dict__
+			settings = __import__('settings')
+		if isinstance(settings, types.ModuleType):
+			settings = settings.__dict__
 		for attr in ('env', 'start_secret', 'result_secret', 'env_api', 'crn', 'operator'):
 			setattr(self, attr, settings[attr])
 			
-		
-		# General
-		self.crn = crn
-		self.operator = operator
-		
 		# API requests
 		from apirequests import RequestFactory
 		from apiresults import ResultFactory
@@ -125,18 +123,17 @@ class Engine(object):
 				'sigtext=%s, received=%s, '
 				'generated=%s' % (sigtext, mac, signature))
 	
-	def generate_start(self, amount, order_id, currency=978,
-		tcontab='I', tautor='I', language=None, customer_email=None,
+	import datatypes
+	def generate_start(self, amount, order_id,
+	    currency=datatypes.Currency('EUR'), # Currency. By default, Euro
+		tcontab=datatypes.ImmediateAcct(),
+		tautor=datatypes.ImmediateAuth(),
+		language=None, customer_email=None,
 		urlback=None, urldone=None, urlms=None,
 		get_modpag=True, first_name=None, last_name=False,
 		cc_only=False, bankpass_only=False, get_trans_type=True, 
 		get_issuer_country=True):
 		"Generate an order URL."
-		
-		# ISO conversion
-		if not isinstance(currency, int):
-			currency = ISOCURR[currency]
-		currency = str(currency)
 		
 		# Check T-options
 		if tcontab not in ('I', 'D'):
