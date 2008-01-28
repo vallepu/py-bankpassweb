@@ -1,6 +1,10 @@
-from bpwexceptions import *
-from mx.DateTime.ISO import ParseDate
 from datetime import date
+from decimal import Decimal
+
+from mx.DateTime.ISO import ParseDate
+
+from bpwexceptions import *
+
 class Parsable(object):
 	"""
 	Base class for all types that can be parsed. By default, the
@@ -168,7 +172,6 @@ class Amount(Valued):
 	"""
 	fieldname = 'IMPORTO'
 	def __init__(self, amount):
-		from decimal import Decimal
 		if isinstance(amount, float):
 			self._value = str(int(amount*100))
 		elif isinstance(amount, Decimal):
@@ -179,6 +182,9 @@ class Amount(Valued):
 			raise TypeError('Invalid argument %s for Amount' % amount)
 	def _val(self):
 		return float(self._value)/100.0
+	def _get_decimal(self):
+		return Decimal(self._value)/Decimal('100')
+	as_decimal = property(_get_decimal)
 
 class Currency(BPWDataType):
 	"""
@@ -190,7 +196,7 @@ class Currency(BPWDataType):
 	def parse(cls, value):
 		return cls(value)
 	def __init__(self, currency):
-		if isinstance(currency, str) and currency.isalpha():
+		if isinstance(currency, basestring) and currency.isalpha():
 			try:
 				self._value = self.ISOCURR[currency]
 			except KeyError:
@@ -339,7 +345,6 @@ class DeferredAuthOpened(AuthStatus):
 	code = '10'
 class DeferredAuthClosed(AuthStatus):
 	code = '11'
-	
 
 class ResultType(Subclassed):
 	"""

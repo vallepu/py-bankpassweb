@@ -1,6 +1,8 @@
 from urllib import urlencode, unquote_plus
 
 from bpwexceptions import *
+import datatypes
+
 
 class Engine(object):
 	"""
@@ -20,8 +22,10 @@ class Engine(object):
 			settings = __import__('settings')
 		if isinstance(settings, types.ModuleType):
 			settings = settings.__dict__
-		for attr in ('env', 'start_secret', 'result_secret', 'env_api', 'crn', 'operator'):
-			setattr(self, attr, settings[attr])
+		for attr in ('env', 'start_secret', 'result_secret', 'env_api',
+			'crn', 'operator'):
+			if not hasattr(self, attr) and (attr in settings):
+				setattr(self, attr, settings[attr])
 			
 		# API requests
 		from apirequests import RequestFactory
@@ -61,7 +65,7 @@ class Engine(object):
 		if api:
 			text = unquote_plus(text)
 		text += '&' + secret
-		return alg.new(text).hexdigest()
+		return alg.new(text).hexdigest().upper()
 	
 	def mac_ok(self, message, reqfields=None, mac=None, optfields=None):
 		"Check the MAC in an answer."
@@ -70,6 +74,7 @@ class Engine(object):
 			assert isinstance(message, str) or isinstance(message, list)
 			string_mode = True
 		else:
+			string_mode = False
 			try:
 				mac = message['MAC']
 			except KeyError:
@@ -99,14 +104,14 @@ class Engine(object):
 			textparams = []
 			for field in reqfields:
 				try:
-					textparams.append('='.join([field, params[field]]))
+					textparams.append('='.join([field, message[field]]))
 				except KeyError:
 					raise BPWProtocolException('Required field %s is missing '
 						'in the remote server''s answer' % field)
 			if optfields:
 				for field in optfields:
 					try:
-						textparams.append('='.join([field, params[field]]))
+						textparams.append('='.join([field, message[field]]))
 					except KeyError:
 						pass
 			sigtext = '&'.join(textparams)
@@ -123,24 +128,23 @@ class Engine(object):
 				'sigtext=%s, received=%s, '
 				'generated=%s' % (sigtext, mac, signature))
 	
-	import datatypes
 	def generate_start(self, amount, order_id,
 	    currency=datatypes.Currency('EUR'), # Currency. By default, Euro
 		tcontab=datatypes.ImmediateAcct(),
 		tautor=datatypes.ImmediateAuth(),
 		language=None, customer_email=None,
 		urlback=None, urldone=None, urlms=None,
-		get_modpag=True, first_name=None, last_name=False,
+		get_modpag=True, first_name=None, last_name=None,
 		cc_only=False, bankpass_only=False, get_trans_type=True, 
 		get_issuer_country=True):
 		"Generate an order URL."
 		
 		# Check T-options
 		if tcontab not in ('I', 'D'):
-			raise BPWParmException('TCONTAB errato')
+			raise BPWParmException(u'TCONTAB parameter invalid: %s' % tcontab)
 		if tautor not in ('I', 'D'):
 			raise BPWParmException('TAUTOR errato')
-		
+					
 		# Check URLs
 		if not urlback:
 			urlback = self.urlback_pattern % order_id
@@ -201,6 +205,5 @@ class Engine(object):
 				'BPW_ISSUER_COUNTRY')):
 			raise BPWCryptoException('Wrong MAC received')
 		from cgi import parse_qs
-		from transaction import Transaction
-		return Transaction.parse(parms)
-		
+		from webresults import Transaction
+		return Transaction.parse(**parms)
