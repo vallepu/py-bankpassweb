@@ -137,7 +137,10 @@ def success(request, checkout):
 	key = unicode(checkout.payment_module.KEY.value)
 	pending_payments = order.payments.filter(
 		transaction_id__exact="PENDING", payment__exact=key)
-	pending_amount = pending_payments[0].amount
+	try:
+		pending_amount = pending_payments[0].amount
+	except IndexError:
+		return bad_or_missing(request, u'The payment was not pending')
 	
 	try:
 		assert isinstance(outcome.outcome, Success), \

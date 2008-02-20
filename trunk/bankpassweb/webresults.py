@@ -47,7 +47,6 @@ class Transaction(object):
 	
 	def _get_item_summary(self, attr, desc):
 		summary = getattr(self, attr, '(unavailable)')
-		print summary, type(summary)
 		if hasattr(summary, '_val'):
 			summary = summary._val()
 		elif ((not isinstance(summary, basestring)) and
